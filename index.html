@@ -458,7 +458,7 @@ document.addEventListener('gesturestart', e => e.preventDefault());
 function aimAt(e) {
   const r = cv.getBoundingClientRect();
   G.cx = clamp((e.clientX - r.left) / r.width * W, 0, W);
-  G.cy = clamp((e.clientY - r.top) / r.height * H - (e.pointerType === 'touch' ? 14 : 0), 0, H);
+  G.cy = clamp((e.clientY - r.top) / r.height * H - (e.pointerType === 'touch' ? (G.kind === 'hive' ? 34 : 14) : 0), 0, H);
 }
 function cvPos(e) { const r = cv.getBoundingClientRect(); return [clamp((e.clientX - r.left) / r.width * W, 0, W), clamp((e.clientY - r.top) / r.height * H, 0, H)]; }
 cv.addEventListener('pointerdown', e => {
