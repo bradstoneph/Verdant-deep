@@ -2119,6 +2119,7 @@ function arBasis() {
   const sy = Math.sin(G.yaw), cy = Math.cos(G.yaw), sp = Math.sin(G.pitch), cp = Math.cos(G.pitch);
   return { f: [sy * cp, sp, -cy * cp], r: [cy, 0, sy], u: [-sy * sp, cp, cy * sp] };
 }
+function hDir(h, vv) { const Hb = G.home || { f: [0, 0, -1], r: [1, 0, 0], u: [0, 1, 0] }, c = Math.cos(vv), a = c * Math.cos(h), b = c * Math.sin(h), d = Math.sin(vv); return [0, 1, 2].map(i => Hb.f[i] * a + Hb.r[i] * b + Hb.u[i] * d); }
 const dot3 = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 function arProj(d, bs, fo, Wc, Hc) {
   const cz = dot3(d, bs.f), cx = dot3(d, bs.r), cy = dot3(d, bs.u);
@@ -2166,11 +2167,11 @@ function arShoot(v) {
   G.shots.push({ life: .08, side: G.shots.length % 2 }); sfx.shot();
   const cx = v.Wc / 2, cy = v.Hc / 2;
   for (const o of G.orbs) {
-    const q = arProj(dirOf(o.y, o.p), v.bs, v.fo, v.Wc, v.Hc); if (q.off) continue;
+    const q = arProj(hDir(o.y, o.p), v.bs, v.fo, v.Wc, v.Hc); if (q.off) continue;
     const k = o.t / o.life, r = v.fo * .03 * (.3 + 1.6 * k * k) / q.z;
     if (Math.hypot(q.x - cx, q.y - cy) < r + v.Wc * .02) { o.dead = 1; S.score += 40; sfx.kill(); arShards(q.x, q.y, 10, '#ff7ad9'); return; }
   }
-  const fq = arProj(dirOf(G.fy, G.fp), v.bs, v.fo, v.Wc, v.Hc);
+  const fq = arProj(hDir(G.fy, G.fp), v.bs, v.fo, v.Wc, v.Hc);
   if (!fq.off && Math.hypot(fq.x - cx, fq.y - cy) < v.fo * .12 / fq.z * .9) {
     G.hp -= 1; G.fl = .06; S.score += 15; sfx.bossHit(); arShards(cx, cy, 3, '#ffffff');
     if (!G.ph2 && G.hp <= G.max * .5) { G.ph2 = 1; S.anom = 2.4; S.anomMsg = ["IT'S GETTING", 'ANGRY', 'IT MOVES FASTER NOW', '#ff7ad9']; sfx.roar(); }
@@ -2189,20 +2190,20 @@ function updateAR(dt, D, live) {
   if (!G.gyro) { G.yaw += (keys.r - keys.l) * 1.6 * dt; G.pitch = clamp(G.pitch + (keys.j - keys.dn) * 1.1 * dt, -1.2, 1.2); }
   const v = arView();
   if (!G.placed && (G.gyro ? G.t > .6 : G.t > 1.4)) {
-    const f = v.bs.f; G.fy = Math.atan2(f[0], -f[2]) + .25; G.fp = clamp(Math.asin(clamp(f[1], -1, 1)), -.4, .6); G.ty = G.fy; G.tp = G.fp; G.placed = 1; G.tT = 1.2;
+    G.home = { f: v.bs.f, r: v.bs.r, u: v.bs.u }; G.fy = .25; G.fp = 0; G.ty = G.fy; G.tp = G.fp; G.placed = 1; G.tT = 1.2;
     S.anom = 3.2; S.anomMsg = ['THERE IT IS', '', G.gyro ? 'MOVE YOUR PHONE TO AIM · TAP OR HOLD FIRE TO SHOOT' : 'DRAG TO LOOK AROUND · HOLD FIRE TO SHOOT', '#c8b0ff'];
   }
   if (G.placed && G.hp > 0 && !G.esc) {
     const spd = (G.ph2 ? .8 : .5) * (.8 + .2 * D);
     G.tT -= dt;
-    if (G.tT <= 0 || (angD(G.fy, G.ty) < .04 && Math.abs(G.fp - G.tp) < .04)) { G.tT = 1.4 + Math.random() * 1.8; G.ty = G.fy + (Math.random() - .5) * (Math.random() < .3 ? 4.5 : 2.2); G.tp = -.3 + Math.random() * .95; }
-    const dy = angS(G.ty - G.fy), dp = G.tp - G.fp, dd = Math.hypot(dy, dp);
-    if (dd > 1e-3) { const st = Math.min(dd, spd * dt); G.fy = angS(G.fy + dy / dd * st); G.fp += dp / dd * st; }
+    if (G.tT <= 0 || (angD(G.fy, G.ty) < .04 && Math.abs(G.fp - G.tp) < .04)) { G.tT = 1.4 + Math.random() * 1.8; G.ty = clamp(G.fy + (Math.random() - .5) * 1.8, -1.05, 1.05); G.tp = -.5 + Math.random() * 1; }
+    const dy = G.ty - G.fy, dp = G.tp - G.fp, dd = Math.hypot(dy, dp);
+    if (dd > 1e-3) { const st = Math.min(dd, spd * dt); G.fy += dy / dd * st; G.fp += dp / dd * st; }
     if (G.hp < G.max * .25) {
       G.blinkT -= dt;
       if (G.blinkT <= 0) {
-        G.blinkT = 4.5; const vy = Math.atan2(v.bs.f[0], -v.bs.f[2]); G.fy = angS(vy + Math.PI + (Math.random() - .5)); G.ty = G.fy; sfx.dash();
-        if (!G.told3) { G.told3 = 1; S.anom = 2.4; S.anomMsg = ['BEHIND', 'YOU!', 'FOLLOW THE ARROW', '#ff4f8b']; }
+        G.blinkT = 4.5; G.fy = -Math.sign(G.fy || 1) * (.75 + Math.random() * .3); G.fp = -.4 + Math.random() * .8; G.ty = G.fy; G.tp = G.fp; sfx.dash();
+        if (!G.told3) { G.told3 = 1; S.anom = 2.4; S.anomMsg = ['IT', 'TELEPORTED!', 'FOLLOW THE ARROW', '#ff4f8b']; }
       }
     }
     if (!port) {
@@ -2265,12 +2266,12 @@ function drawAR(time) {
   if (!G.placed) { x2.font = `${Math.round(10 * u)}px Silkscreen, monospace`; x2.fillStyle = Math.floor(time / 300) % 2 ? '#c8b0ff' : '#7a6aa0'; x2.fillText('SCANNING YOUR WORLD...', ccx, ccy + 30 * u); }
   let fq = null, onFace = false;
   if (G.placed && (G.hp > 0)) {
-    fq = arProj(dirOf(G.fy, G.fp), v.bs, v.fo, Wc, Hc);
+    fq = arProj(hDir(G.fy, G.fp), v.bs, v.fo, Wc, Hc);
     if (fq.z > .06) { const R = v.fo * .12 / fq.z; drawARFace(x2, fq.x, fq.y, R, time); onFace = Math.hypot(fq.x - ccx, fq.y - ccy) < R * .9; }
   }
   const os = [...G.orbs].sort((a, b) => a.t - b.t);
   for (const o of os) {
-    const q = arProj(dirOf(o.y, o.p), v.bs, v.fo, Wc, Hc); if (q.z < .06) continue;
+    const q = arProj(hDir(o.y, o.p), v.bs, v.fo, Wc, Hc); if (q.z < .06) continue;
     const k = o.t / o.life, r = v.fo * .03 * (.3 + 1.6 * k * k) / q.z, og = x2.createRadialGradient(q.x - r * .3, q.y - r * .3, 0, q.x, q.y, r * 1.5);
     og.addColorStop(0, '#ffffff'); og.addColorStop(.4, 'rgba(255,122,217,.95)'); og.addColorStop(1, 'rgba(160,60,200,0)');
     x2.fillStyle = og; x2.beginPath(); x2.arc(q.x, q.y, r * 1.5, 0, 7); x2.fill();
