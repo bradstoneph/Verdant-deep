@@ -64,6 +64,8 @@ h1 .em{color:var(--lamp);text-shadow:0 0 18px rgba(255,181,71,.5),3px 3px 0 #4a2
 .keys{font-size:12px;color:var(--slate);line-height:1.6}
 .keys kbd{font-family:var(--pix);font-size:10px;border:1px solid #2c3e46;border-radius:4px;padding:1px 5px;color:#9fb5b0}
 .row{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
+.row .ghost{padding:6px 12px;font-size:13px}
+@media (max-height:440px){h1{font-size:clamp(30px,8vh,44px)}.sub{font-size:13px;line-height:1.4}.panel{gap:9px}.go{padding:11px 30px}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 
@@ -497,7 +499,7 @@ function titleScreen() {
     <h1>Verdant<br><span class="em">Deep</span></h1>
     <p class="sub">Scout Wren drops into the flooded ruins. Clear the crawlers, cross the glowing pools, and bring down the Ember Moth. Something far bigger drifts beyond it.</p>
     <button class="go" id="go">PLAY</button>
-    ${l2 ? `<div class="row"><button class="ghost" id="l2">Level 2</button>${l3 ? '<button class="ghost" id="l3">Level 3</button>' : ''}${l4 ? '<button class="ghost" id="l4">Level 4</button>' : ''}${l5 ? '<button class="ghost" id="l5">Level 5</button>' : ''}${l6 ? '<button class="ghost" id="l6">Level 6</button>' : ''}</div>` : ''}
+    <div class="row">${[2, 3, 4, 5, 6].map(n => `<button class="ghost" id="l${n}">Level ${n}</button>`).join('')}</div>
     ${isTouch ? '<div class="keys">Slide on the left pad to move. Hold FIRE to charge a heavy shot. DASH makes you briefly untouchable.</div>' : keyHelp}
     ${best ? `<div class="keys">Best score ${best.toLocaleString()}</div>` : ''}`);
   document.getElementById('go').onclick = start;
