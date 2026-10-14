@@ -44,6 +44,7 @@ canvas{display:block;image-rendering:pixelated;image-rendering:crisp-edges;backg
 #arv{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
 #arc{position:absolute;inset:0;width:100%;height:100%;border-radius:0;box-shadow:none;background:transparent;image-rendering:auto}
 #arFire{position:absolute;right:calc(18px + env(safe-area-inset-right,0px));bottom:calc(18px + env(safe-area-inset-bottom,0px));width:86px;height:86px;border-color:rgba(255,122,217,.6);font-size:13px}
+#arMode{position:absolute;left:calc(14px + env(safe-area-inset-left,0px));top:calc(54px + env(safe-area-inset-top,0px));font-size:12px;padding:6px 12px;background:rgba(5,3,10,.55)}
 #arFire.on{background:rgba(255,122,217,.3);border-color:#ff7ad9}
 #pauseBtn{position:absolute;top:calc(10px + env(safe-area-inset-top,0px));right:16px;width:38px;height:38px;border-radius:10px;border:1px solid var(--rim);background:var(--glass);color:var(--ink);display:grid;place-items:center;cursor:pointer;z-index:3}
 #pauseBtn svg{width:16px;height:16px;fill:currentColor}
@@ -71,7 +72,7 @@ h1 .em{color:var(--lamp);text-shadow:0 0 18px rgba(255,181,71,.5),3px 3px 0 #4a2
 
 <div id="wrap">
   <canvas id="c" aria-label="Verdant Deep game screen"></canvas>
-  <div id="arw" hidden><video id="arv" playsinline muted autoplay></video><canvas id="arc"></canvas><button class="btn" id="arFire" aria-label="Fire">FIRE</button></div>
+  <div id="arw" hidden><video id="arv" playsinline muted autoplay></video><canvas id="arc"></canvas><button class="btn" id="arFire" aria-label="Fire">FIRE</button><button class="ghost" id="arMode">Tilt aiming on · tap for drag</button></div>
 
   <button id="pauseBtn" aria-label="Pause" hidden><svg viewBox="0 0 16 16"><rect x="3" y="2" width="3.5" height="12" rx="1"/><rect x="9.5" y="2" width="3.5" height="12" rx="1"/></svg></button>
 
@@ -501,7 +502,8 @@ function titleScreen() {
     <button class="go" id="go">PLAY</button>
     <div class="row">${[2, 3, 4, 5, 6].map(n => `<button class="ghost" id="l${n}">Level ${n}</button>`).join('')}</div>
     ${isTouch ? '<div class="keys">Slide on the left pad to move. Hold FIRE to charge a heavy shot. DASH makes you briefly untouchable.</div>' : keyHelp}
-    ${best ? `<div class="keys">Best score ${best.toLocaleString()}</div>` : ''}`);
+    ${best ? `<div class="keys">Best score ${best.toLocaleString()}</div>` : ''}
+    <div class="keys" style="opacity:.5;font-size:10px">build 14 Oct · 11:50</div>`);
   document.getElementById('go').onclick = start;
   const b2 = document.getElementById('l2'); if (b2) b2.onclick = () => startLevel(2);
   const b3 = document.getElementById('l3'); if (b3) b3.onclick = () => startLevel(3);
@@ -2084,20 +2086,21 @@ function drawFaceWall(x, y, time) {
     for (const sd of [-1, 1]) { ctx.strokeStyle = 'rgba(255,122,217,.85)'; ctx.lineWidth = w + 2; ctx.beginPath(); ctx.moveTo(x + sd * 11, y - 8); ctx.lineTo(px, py); ctx.stroke(); ctx.strokeStyle = '#ffffff'; ctx.lineWidth = w; ctx.stroke(); }
   }
 }
+const isPort = () => innerHeight > innerWidth * 1.2;
 function faceShift() {
   B = null; S.mode = 'shift'; S.lock = 1; S.locked = true;
   save = { lv: 6, gut: 1, score: S.score, t: S.t, t0: S.t0 };
   shiftPanel(); sfx.roar();
 }
 function shiftPanel() {
-  const port = innerHeight > innerWidth;
+  const port = isPort();
   show(`<div class="eyebrow">Dimension shift</div>
     <h1 style="font-size:clamp(28px,7vw,44px)">Welcome to<br><span class="em">your world</span></h1>
     <p class="sub">The Face has dragged Wren out of the game and into YOUR dimension. It's floating somewhere around you right now. Hold your phone up, look around, find it and shoot it.</p>
     ${port ? '<div class="keys" style="color:var(--lamp);font-size:14px">Turn your phone sideways (landscape) to continue</div>' : ''}
     <button class="go" id="go" ${port ? 'disabled style="opacity:.35"' : ''}>ENTER YOUR WORLD</button>
     <div class="keys">It will ask for your camera and motion sensors. Say no and you can still play by dragging to look around.</div>`);
-  document.getElementById('go').onclick = () => { if (innerHeight > innerWidth) return; enterAR(); };
+  document.getElementById('go').onclick = () => { if (isPort()) return; enterAR(); };
 }
 addEventListener('resize', () => { if (S && S.mode === 'shift') shiftPanel(); });
 
@@ -2111,7 +2114,7 @@ function qRot(q, v) { const [x, y, z, w] = q, [vx, vy, vz] = v, ix = w * vx + y 
 function scrAngle() { const a = screen.orientation && typeof screen.orientation.angle === 'number' ? screen.orientation.angle : typeof window.orientation === 'number' ? window.orientation : 0; return a * Math.PI / 180; }
 const dirOf = (yw, p) => [Math.sin(yw) * Math.cos(p), Math.sin(p), -Math.cos(yw) * Math.cos(p)];
 function arBasis() {
-  if (G.gyro && ORI) {
+  if (G.gyro && ORI && !G.forceDrag) {
     const d = Math.PI / 180, o = scrAngle();
     let q = qEulerYXZ(ORI.b * d, ORI.a * d, -ORI.g * d); q = qMul(q, [-Math.SQRT1_2, 0, 0, Math.SQRT1_2]); q = qMul(q, [0, 0, Math.sin(-o / 2), Math.cos(-o / 2)]);
     return { f: qRot(q, [0, 0, -1]), u: qRot(q, [0, 1, 0]), r: qRot(q, [1, 0, 0]) };
@@ -2136,7 +2139,7 @@ function enterAR() {
   try { if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) camAsk = navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } }, audio: false }); } catch (e) {}
   S.mode = 'play'; S.gut = 1; S.lock = 0; S.locked = true; B = null; bullets = []; enemies = []; parts = [];
   ov.hidden = true; pauseBtn.hidden = false; ctl.hidden = true; arw.hidden = false;
-  G = { kind: 'ar', t: 0, hp: 60, max: 60, fy: 0, fp: 0, ty: 0, tp: 0, tT: 1.2, yaw: 0, pitch: 0, placed: 0, gyro: 0, cam: 0, stream: null, orbs: [], orbT: 2.6, blinkT: 4, shots: [], cracks: [], shards: [], firing: 0, btn: 0, drag: null, fl: 0, esc: 0, ptr: null, ph2: 0, told3: 0,
+  G = { kind: 'ar', t: 0, hp: 45, max: 45, lostT: 0, forceDrag: 0, fy: 0, fp: 0, ty: 0, tp: 0, tT: 1.2, yaw: 0, pitch: 0, placed: 0, gyro: 0, cam: 0, stream: null, orbs: [], orbT: 2.6, blinkT: 4, shots: [], cracks: [], shards: [], firing: 0, btn: 0, drag: null, fl: 0, esc: 0, ptr: null, ph2: 0, told3: 0,
     dust: Array.from({ length: 240 }, () => [Math.random() * 6.283, Math.asin(Math.random() * 2 - 1), Math.random()]) };
   P.inv = 1.2; P.hp = Math.max(P.hp, Math.round(maxHp() * .7)); P.cool = .3; P.shield = 0;
   save = { lv: 6, gut: 1, score: S.score, t: S.t, t0: S.t0 };
@@ -2151,7 +2154,7 @@ function arClose() {
 }
 arC.addEventListener('pointerdown', e => {
   if (!G || G.kind !== 'ar' || S.mode !== 'play') return; e.preventDefault(); audioInit(); try { arC.setPointerCapture(e.pointerId); } catch (_) {}
-  if (G.gyro) { G.firing = 1; G.ptr = e.pointerId; } else G.drag = { id: e.pointerId, x: e.clientX, y: e.clientY, yaw: G.yaw, pitch: G.pitch };
+  if (G.gyro && !G.forceDrag) { G.firing = 1; G.ptr = e.pointerId; } else G.drag = { id: e.pointerId, x: e.clientX, y: e.clientY, yaw: G.yaw, pitch: G.pitch };
 });
 arC.addEventListener('pointermove', e => {
   if (!G || G.kind !== 'ar' || !G.drag || G.drag.id !== e.pointerId) return;
@@ -2163,6 +2166,15 @@ arFire.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagat
 const arFireUp = () => { if (G && G.kind === 'ar') G.btn = 0; arFire.classList.remove('on'); };
 arFire.addEventListener('pointerup', arFireUp); arFire.addEventListener('pointercancel', arFireUp); arFire.addEventListener('lostpointercapture', arFireUp);
 arFire.addEventListener('contextmenu', e => e.preventDefault());
+const arMode = document.getElementById('arMode');
+function arModeLabel() { arMode.hidden = !G || !G.gyro; if (G) arMode.textContent = G.forceDrag ? 'Drag aiming on · tap for tilt' : 'Tilt aiming on · tap for drag'; }
+arMode.addEventListener('pointerdown', e => {
+  e.preventDefault(); e.stopPropagation(); if (!G || G.kind !== 'ar') return;
+  const f = arBasis().f;
+  if (!G.forceDrag) { G.forceDrag = 1; G.yaw = Math.atan2(f[0], -f[2]); G.pitch = clamp(Math.asin(clamp(f[1], -1, 1)), -1.2, 1.2); }
+  else G.forceDrag = 0;
+  G.home = null; G.placed = 0; G.t = G.gyro && !G.forceDrag ? .5 : 1.3; arModeLabel();
+});
 function arShoot(v) {
   G.shots.push({ life: .08, side: G.shots.length % 2 }); sfx.shot();
   const cx = v.Wc / 2, cy = v.Hc / 2;
@@ -2172,7 +2184,7 @@ function arShoot(v) {
     if (Math.hypot(q.x - cx, q.y - cy) < r + v.Wc * .02) { o.dead = 1; S.score += 40; sfx.kill(); arShards(q.x, q.y, 10, '#ff7ad9'); return; }
   }
   const fq = arProj(hDir(G.fy, G.fp), v.bs, v.fo, v.Wc, v.Hc);
-  if (!fq.off && Math.hypot(fq.x - cx, fq.y - cy) < v.fo * .12 / fq.z * .9) {
+  if (!fq.off && Math.hypot(fq.x - cx, fq.y - cy) < v.fo * .12 / fq.z * 1.05) {
     G.hp -= 1; G.fl = .06; S.score += 15; sfx.bossHit(); arShards(cx, cy, 3, '#ffffff');
     if (!G.ph2 && G.hp <= G.max * .5) { G.ph2 = 1; S.anom = 2.4; S.anomMsg = ["IT'S GETTING", 'ANGRY', 'IT MOVES FASTER NOW', '#ff7ad9']; sfx.roar(); }
     if (G.hp <= 0) {
@@ -2186,33 +2198,42 @@ function arShards(x, y, n, c) { const s = arC.width / 384; for (let i = 0; i < n
 function updateAR(dt, D, live) {
   G.t += dt; P.inv -= dt; P.cool -= dt; G.fl -= dt; shake = 0;
   resizeAR();
-  const port = innerHeight > innerWidth;
-  if (!G.gyro) { G.yaw += (keys.r - keys.l) * 1.6 * dt; G.pitch = clamp(G.pitch + (keys.j - keys.dn) * 1.1 * dt, -1.2, 1.2); }
+  const port = isPort();
+  arModeLabel();
+  if (!G.gyro || G.forceDrag) { G.yaw += (keys.r - keys.l) * 1.6 * dt; G.pitch = clamp(G.pitch + (keys.j - keys.dn) * 1.1 * dt, -1.2, 1.2); }
   const v = arView();
   if (!G.placed && (G.gyro ? G.t > .6 : G.t > 1.4)) {
     G.home = { f: v.bs.f, r: v.bs.r, u: v.bs.u }; G.fy = .25; G.fp = 0; G.ty = G.fy; G.tp = G.fp; G.placed = 1; G.tT = 1.2;
-    S.anom = 3.2; S.anomMsg = ['THERE IT IS', '', G.gyro ? 'MOVE YOUR PHONE TO AIM · TAP OR HOLD FIRE TO SHOOT' : 'DRAG TO LOOK AROUND · HOLD FIRE TO SHOOT', '#c8b0ff'];
+    S.anom = 3.2; S.anomMsg = ['THERE IT IS', '', G.gyro && !G.forceDrag ? 'MOVE YOUR PHONE TO AIM · TAP OR HOLD FIRE TO SHOOT' : 'DRAG TO LOOK AROUND · HOLD FIRE TO SHOOT', '#c8b0ff'];
   }
   if (G.placed && G.hp > 0 && !G.esc) {
-    const spd = (G.ph2 ? .8 : .5) * (.8 + .2 * D);
+    const spd = G.ret ? 2.4 : (G.ph2 ? .5 : .32) * (.8 + .2 * D);
+    if (G.ret && Math.abs(G.ty - G.fy) < .08 && Math.abs(G.tp - G.fp) < .08) G.ret = 0;
     G.tT -= dt;
-    if (G.tT <= 0 || (angD(G.fy, G.ty) < .04 && Math.abs(G.fp - G.tp) < .04)) { G.tT = 1.4 + Math.random() * 1.8; G.ty = clamp(G.fy + (Math.random() - .5) * 1.8, -1.05, 1.05); G.tp = -.5 + Math.random() * 1; }
+    if (G.tT <= 0 || (angD(G.fy, G.ty) < .04 && Math.abs(G.fp - G.tp) < .04)) { G.tT = 1.4 + Math.random() * 1.8; G.ty = clamp(G.fy + (Math.random() - .5) * 1.2, -.7, .7); G.tp = -.3 + Math.random() * .6; }
     const dy = G.ty - G.fy, dp = G.tp - G.fp, dd = Math.hypot(dy, dp);
     if (dd > 1e-3) { const st = Math.min(dd, spd * dt); G.fy += dy / dd * st; G.fp += dp / dd * st; }
+    // lost it for a while? the play zone re-centres on where you're looking and it flies back into view
+    { const fq0 = arProj(hDir(G.fy, G.fp), v.bs, v.fo, v.Wc, v.Hc); G.lostT = fq0.off ? G.lostT + dt : 0;
+      if (G.lostT > 2.5 && !G.ret) {
+        const d = hDir(G.fy, G.fp), bs = v.bs; G.home = { f: bs.f, r: bs.r, u: bs.u };
+        G.fy = Math.atan2(dot3(d, bs.r), dot3(d, bs.f)); G.fp = Math.asin(clamp(dot3(d, bs.u), -1, 1)); G.ty = .15; G.tp = 0; G.tT = 3; G.ret = 1; G.lostT = 0;
+        if (!G.toldBack) { G.toldBack = 1; S.anom = 2; S.anomMsg = ['', '', "LOST IT? IT'S COMING BACK TO YOU", '#c8b0ff']; }
+      } }
     if (G.hp < G.max * .25) {
       G.blinkT -= dt;
       if (G.blinkT <= 0) {
-        G.blinkT = 4.5; G.fy = -Math.sign(G.fy || 1) * (.75 + Math.random() * .3); G.fp = -.4 + Math.random() * .8; G.ty = G.fy; G.tp = G.fp; sfx.dash();
+        G.blinkT = 4.5; G.fy = -Math.sign(G.fy || 1) * (.45 + Math.random() * .2); G.fp = -.25 + Math.random() * .5; G.ty = G.fy; G.tp = G.fp; sfx.dash();
         if (!G.told3) { G.told3 = 1; S.anom = 2.4; S.anomMsg = ['IT', 'TELEPORTED!', 'FOLLOW THE ARROW', '#ff4f8b']; }
       }
     }
     if (!port) {
       G.orbT -= dt;
-      if (G.orbT <= 0 && live) { G.orbT = (G.ph2 ? 1.5 : 2.2) / D; G.orbs.push({ y: G.fy + (Math.random() - .5) * .12, p: G.fp - .04 + (Math.random() - .5) * .08, t: 0, life: 2.1 / (.8 + .2 * D) }); sfx.ember(); }
+      if (G.orbT <= 0 && live) { G.orbT = (G.ph2 ? 2 : 2.8) / D; G.orbs.push({ y: G.fy + (Math.random() - .5) * .12, p: G.fp - .04 + (Math.random() - .5) * .08, t: 0, life: 2.1 / (.8 + .2 * D) }); sfx.ember(); }
     }
     for (const o of G.orbs) {
       o.t += dt;
-      if (o.t >= o.life) { o.dead = 1; if (live) { hurt(Math.round(10 * D), 0); G.cracks.push({ x: .25 + Math.random() * .5, y: .25 + Math.random() * .5, life: 2.4, seed: Math.random() * 9 }); } }
+      if (o.t >= o.life) { o.dead = 1; if (live) { hurt(Math.round(8 * D), 0); G.cracks.push({ x: .25 + Math.random() * .5, y: .25 + Math.random() * .5, life: 2.4, seed: Math.random() * 9 }); } }
     }
     G.orbs = G.orbs.filter(o => !o.dead);
     if ((G.firing || G.btn || keys.f) && !port && P.cool <= 0 && live) { P.cool = .11; arShoot(v); }
@@ -2267,7 +2288,7 @@ function drawAR(time) {
   let fq = null, onFace = false;
   if (G.placed && (G.hp > 0)) {
     fq = arProj(hDir(G.fy, G.fp), v.bs, v.fo, Wc, Hc);
-    if (fq.z > .06) { const R = v.fo * .12 / fq.z; drawARFace(x2, fq.x, fq.y, R, time); onFace = Math.hypot(fq.x - ccx, fq.y - ccy) < R * .9; }
+    if (fq.z > .06) { const R = v.fo * .12 / fq.z; drawARFace(x2, fq.x, fq.y, R, time); onFace = Math.hypot(fq.x - ccx, fq.y - ccy) < R * 1.05; }
   }
   const os = [...G.orbs].sort((a, b) => a.t - b.t);
   for (const o of os) {
@@ -2322,7 +2343,7 @@ function drawAR(time) {
     if (sub) { x2.font = `${Math.round(8 * u)}px Silkscreen, monospace`; x2.fillStyle = '#ffffff'; x2.fillText(sub, ccx, 96 * u); }
     x2.globalAlpha = 1;
   }
-  if (innerHeight > innerWidth && !G.esc) {
+  if (isPort() && !G.esc) {
     x2.fillStyle = 'rgba(5,3,10,.7)'; x2.fillRect(0, ccy - 34 * u, Wc, 68 * u);
     x2.font = `700 ${Math.round(12 * u)}px Silkscreen, monospace`; x2.fillStyle = '#ffb547'; x2.fillText('TURN YOUR PHONE', ccx, ccy - 22 * u); x2.fillText('SIDEWAYS TO SHOOT', ccx, ccy - 4 * u);
   }
