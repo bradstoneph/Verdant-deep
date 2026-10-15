@@ -399,7 +399,7 @@ function paintLayers() {
 /* ---------- state ---------- */
 let save = null, ease = .85, G = null, suit = 0, SH = null;
 try { suit = localStorage.getItem('vd-suit') === '1' ? 1 : 0; } catch (e) {}
-const maxHp = () => suit === 2 ? 274 : suit ? 124 : 99;
+const maxHp = () => suit === 2 ? 150 : suit ? 124 : 99;
 const suitPal = () => suit === 2 ? FRPAL : suit ? EPAL : PPAL;
 const diff = () => clamp(ease + S.alive / 220, .6, 1.6);
 let S, P, enemies, bullets, embers, parts, picks, B, cam, shake, keys, edge;
@@ -503,7 +503,7 @@ function titleScreen() {
     <div class="row">${[2, 3, 4, 5, 6].map(n => `<button class="ghost" id="l${n}">Level ${n}</button>`).join('')}</div>
     ${isTouch ? '<div class="keys">Slide on the left pad to move. Hold FIRE to charge a heavy shot. DASH makes you briefly untouchable.</div>' : keyHelp}
     ${best ? `<div class="keys">Best score ${best.toLocaleString()}</div>` : ''}
-    <div class="keys" style="opacity:.5;font-size:10px">build 14 Oct · 11:50</div>`);
+    <div class="keys" style="opacity:.5;font-size:10px">build 15 Oct · 11:25</div>`);
   document.getElementById('go').onclick = start;
   const b2 = document.getElementById('l2'); if (b2) b2.onclick = () => startLevel(2);
   const b3 = document.getElementById('l3'); if (b3) b3.onclick = () => startLevel(3);
@@ -2362,7 +2362,7 @@ function giveFrost() {
   suit = 2; try { localStorage.setItem('vd-suit2', '1'); localStorage.setItem('vd-suit', '1'); } catch (e) {}
   P.hp = maxHp(); P.shield = 1.4; shake = 5; sfx.beacon(); setTimeout(() => sfx.freeze(), 350);
   burst(P.x + 5, P.y + 7, 60, ['#ffffff', '#bfefff', '#7af0ff', '#c8b0ff'], 150, 1, 0);
-  S.anom = 3.6; S.anomMsg = ['SUIT UPGRADE 3', 'FROST SUIT', '+150 ENERGY · FROST BEAM CHARGE SHOT', '#7af0ff'];
+  S.anom = 3.6; S.anomMsg = ['SUIT UPGRADE 3', 'FROST SUIT', '150 ENERGY · FROST BEAM CHARGE SHOT', '#7af0ff'];
   S.lock = 1; S.extT = 3;
 }
 function startExtract() {
